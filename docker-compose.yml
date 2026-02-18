@@ -1,0 +1,120 @@
+services:
+  # PostgreSQL Database Service
+  postgres:
+    image: postgres:15-alpine
+    container_name: document_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: document_index
+    ports:
+      - "5432:5432"
+    volumes:
+      # Persist database data
+      - postgres_data:/var/lib/postgresql/data
+      # Initialize database schema on first run
+      - ./sql/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d document_index"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - crawler_network
+
+  # Document Crawler Service
+  crawler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: document_crawler
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # Database connection settings
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: document_index
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+    volumes:
+      # Mount storage directory (input documents)
+      - ./storage:/app/storage:ro
+      # Mount output directory (CSV output)
+      - ./output:/app/output
+      # Mount crawler code for development
+      - ./crawler:/app/crawler:ro
+    command: >
+      sh -c "
+        echo '=== Generating test documents ===' &&
+        python3 crawler/generate_documents.py &&
+        echo '=== Running crawler ===' &&
+        python3 crawler/crawler.py --storage storage --output output/extracted_data.csv &&
+        echo '=== Importing to database ===' &&
+        python3 crawler/import_to_db.py --csv output/extracted_data.csv --host postgres --db document_index
+      "
+    networks:
+      - crawler_network
+
+  # Database Import Service (standalone, for manual imports)
+  importer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: document_importer
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: document_index
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+    volumes:
+      - ./output:/app/output
+      - ./crawler:/app/crawler:ro
+    command: >
+      python3 crawler/import_to_db.py 
+        --csv output/extracted_data.csv 
+        --host postgres 
+        --db document_index
+    profiles:
+      - import
+    networks:
+      - crawler_network
+
+  # pgAdmin (optional, for database management)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: document_pgadmin
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@document.local
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    profiles:
+      - admin
+    networks:
+      - crawler_network
+
+# Named volumes for data persistence
+volumes:
+  postgres_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+# Network configuration
+networks:
+  crawler_network:
+    driver: bridge

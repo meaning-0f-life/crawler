@@ -1,0 +1,34 @@
+# Document Crawler Dependencies
+# Установите командой: pip install -r requirements.txt
+
+# Работа с документами Word (.docx)
+python-docx>=0.8.11
+
+# Работа с документами Excel (.xlsx)
+openpyxl>=3.1.0
+
+# Работа с устаревшими файлами Excel (.xls)
+xlrd>=2.0.1
+
+# Работа с PDF файлами
+PyPDF2>=3.0.0
+pdfplumber>=0.9.0
+
+# Работа с архивами
+py7zr>=0.20.0
+rarfile>=4.0
+
+# Определение кодировки текста
+chardet>=5.0
+
+# Работа с CSV (встроенная библиотека)
+# csv - стандартная библиотека Python
+
+# Работа с путями и файловой системой (встроенные библиотеки)
+# os, pathlib, shutil - стандартные библиотеки Python
+
+# Генерация PDF документов
+reportlab>=4.0.0
+
+# Работа с PostgreSQL базой данных
+psycopg2-binary>=2.9.0
