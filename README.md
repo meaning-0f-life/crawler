@@ -327,11 +327,6 @@ python3 crawler/clean.py --keep-data --keep-storage
 - Clears the `storage/` directory (removes all test documents and archives)
 - Clears the `output/` directory (removes the CSV output)
 
-**Note:** If you're running PostgreSQL outside Docker, you'll need to manually drop the database:
-```bash
-psql -U postgres -c "DROP DATABASE document_index;"
-```
-
 ## Development
 
 ### Running Tests
